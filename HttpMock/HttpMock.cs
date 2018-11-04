@@ -207,7 +207,7 @@ namespace HttpMock
         IConfigurableHttpEndpointMockSetup Handler(Func<HttpListenerRequest, Response> handler);
         IConfigurableHttpEndpointMockSetup Handler(Func<Response> handler);
         IConfigurableHttpEndpointMockSetup When(Func<HttpListenerRequest, bool> matcher);
-        IConfigurableHttpEndpointMockSetup WhenBody<TBody>(Func<TBody, bool> matcher);
+        IConfigurableHttpEndpointMockSetup WhenBody<TBody>(Predicate<TBody> matcher);
         IConfigurableHttpEndpointMockSetup ReturnsBody(object body);
         IConfigurableHttpEndpointMockSetup ReturnsHeader(string header, params string[] headerValues);
         IConfigurableHttpEndpointMockSetup ReturnsCode(int code);
@@ -237,7 +237,7 @@ namespace HttpMock
             Status = status;
         }
 
-        public Dictionary<string, string> Headers { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> Headers { get; } = new Dictionary<string, string>();
         public object Body { get; set; }
         public int Status { get; set; }
     }
@@ -251,7 +251,7 @@ namespace HttpMock
                 Endpoint = endpoint;
             }
 
-            public string Endpoint { get; private set; }
+            public string Endpoint { get; }
             Response Response { get; set; } = new Response(new object(), 200);
             Func<HttpListenerRequest, string, Response> ResponseFactory { get; set; }
             Func<HttpListenerRequest, bool> Matcher { get; set; }
@@ -259,13 +259,15 @@ namespace HttpMock
             HttpMethod Method { get; set; }
             public bool IsRequired { get; private set; }
 
+            public void ResetCalls() => CallCount = 0;
 
-            public void ResetCalls()
-            {
-                CallCount = 0;
-                Called = false;
-            }
-
+            /// <summary>
+            /// Wait for the setup endpoint to be invoked
+            /// </summary>
+            /// <param name="count">The number of times the endpoint should be called</param>
+            /// <param name="seconds">How long to wait before timing out</param>
+            /// <returns>A Task</returns>
+            /// <exception cref="TimeoutException"></exception>
             public async Task WaitForCall(int count = 1, int seconds = 15)
             {
                 for (var i = 0; i < seconds * 2; i++)
@@ -278,19 +280,28 @@ namespace HttpMock
                 throw new TimeoutException($"Timed out waiting for {Method} call to {Endpoint}");
             }
 
-            public void RecordCall()
-            {
-                Called = true;
-                CallCount++;
-            }
-            public int CallCount { get; set; }
-            public bool Called { get; set; }
+            internal void RecordCall() => CallCount++;
 
-            public Response GetResponse(HttpListenerRequest request, string json)
+            /// <summary>
+            /// How many times the setup has been matched to HTTP calls
+            /// </summary>
+            public int CallCount { get; private set; }
+
+            /// <summary>
+            /// Whether the setup has been matched to a HTTP call
+            /// </summary>
+            public bool Called => CallCount > 0;
+
+            internal Response GetResponse(HttpListenerRequest request, string json)
             {
                 return ResponseFactory != null ? ResponseFactory(request, json) : Response;
             }
 
+            /// <summary>
+            /// Specify a handler that will use the request and request body to generate the response on-the-fly
+            /// </summary>
+            /// <param name="handler">The response factory</param>
+            /// <typeparam name="TBody">The type to deserialize the request as</typeparam>
             public IConfigurableHttpEndpointMockSetup Handler<TBody>(Func<TBody, HttpListenerRequest, Response> handler)
             {
                 ResponseFactory = (request, json) =>
@@ -305,6 +316,11 @@ namespace HttpMock
                 return this;
             }
 
+            /// <summary>
+            /// Specify a handler that will use the request body to generate the response on-the-fly
+            /// </summary>
+            /// <param name="handler">The response factory</param>
+            /// <typeparam name="TBody">The type to deserialize the request as</typeparam>
             public IConfigurableHttpEndpointMockSetup Handler<TBody>(Func<TBody, Response> handler)
             {
                 ResponseFactory = (request, json) =>
@@ -319,79 +335,124 @@ namespace HttpMock
                 return this;
             }
 
+            /// <summary>
+            /// Specify a handler that will use the request to generate the response on-the-fly
+            /// </summary>
+            /// <param name="handler">The response factory</param>
             public IConfigurableHttpEndpointMockSetup Handler(Func<HttpListenerRequest, Response> handler)
             {
                 ResponseFactory = (request, json) => handler(request);
                 return this;
             }
 
+            /// <summary>
+            /// Specify a handler that will generate the response on-the-fly
+            /// </summary>
+            /// <param name="handler">The response factory</param>
             public IConfigurableHttpEndpointMockSetup Handler(Func<Response> handler)
             {
                 ResponseFactory = (request, json) => handler();
                 return this;
             }
 
+            /// <summary>
+            /// Specify a predicate that should be applied to match requests
+            /// </summary>
+            /// <param name="matcher">The predicate</param>
             public IConfigurableHttpEndpointMockSetup When(Func<HttpListenerRequest, bool> matcher)
             {
                 Matcher = matcher;
                 return this;
             }
 
-            public IConfigurableHttpEndpointMockSetup WhenBody<T>(Func<T, bool> matcher)
+            /// <summary>
+            /// Specify a predicate that should be applied to match request bodies
+            /// </summary>
+            /// <param name="matcher">The predicate</param>
+            /// <typeparam name="T">The type to deserialize the body as</typeparam>
+            public IConfigurableHttpEndpointMockSetup WhenBody<T>(Predicate<T> matcher)
             {
                 BodyMatcher = request => TryGetJson(request, out T body) && matcher(body);
                 return this;
             }
 
+            /// <summary>
+            /// Specify a header that should be returned when this setup is matched
+            /// </summary>
+            /// <param name="header">The name of the header</param>
+            /// <param name="headerValues">One or more values to return</param>
             public IConfigurableHttpEndpointMockSetup ReturnsHeader(string header, params string[] headerValues)
             {
                 Response.Headers.Add(header, string.Join(",", headerValues));
                 return this;
             }
 
+            /// <summary>
+            /// Specify a response body that should be JSON serialized and returned when this setup is matched
+            /// </summary>
+            /// <param name="body">The body to return</param>
             public IConfigurableHttpEndpointMockSetup ReturnsBody(object body)
             {
                 Response.Body = body;
                 return this;
             }
 
+            /// <summary>
+            /// Specify the return code of this setup
+            /// </summary>
+            /// <param name="code">The HTTP status code to return</param>
             public IConfigurableHttpEndpointMockSetup ReturnsCode(int code)
             {
                 Response.Status = code;
                 return this;
             }
 
+            /// <summary>
+            /// Specify that an exceptions should be thrown if this setup is not called before the mock is disposed
+            /// </summary>
             public IConfigurableHttpEndpointMockSetup Required()
             {
                 IsRequired = true;
                 return this;
             }
 
+            /// <summary>
+            /// Specify that this setup should only match GET requests
+            /// </summary>
             public IConfigurableHttpEndpointMockSetup Get()
             {
                 Method = HttpMethod.Get;
                 return this;
             }
 
+            /// <summary>
+            /// Specify that this setup should only match POST requests
+            /// </summary>
             public IConfigurableHttpEndpointMockSetup Post()
             {
                 Method = HttpMethod.Post;
                 return this;
             }
 
+            /// <summary>
+            /// Specify that this setup should only match PUT requests
+            /// </summary>
             public IConfigurableHttpEndpointMockSetup Put()
             {
                 Method = HttpMethod.Put;
                 return this;
             }
 
+            /// <summary>
+            /// Specify that this setup should only match DELETE requests
+            /// </summary>
             public IConfigurableHttpEndpointMockSetup Delete()
             {
                 Method = HttpMethod.Delete;
                 return this;
             }
-
-            public bool Matches(HttpListenerRequest request, string body, string baseUrl)
+            
+            internal bool Matches(HttpListenerRequest request, string body, string baseUrl)
             {
                 if (Method != null && Method.Method != request.HttpMethod)
                     return false;
