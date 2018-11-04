@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HttpMock", "HttpMock\HttpMock.csproj", "{69943E59-3592-42A3-8BC8-C9C18DC68495}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HttpMock.Tests", "HttpMock.Tests\HttpMock.Tests.csproj", "{1257DE8D-820F-45AD-AFA4-60D758973E07}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{69943E59-3592-42A3-8BC8-C9C18DC68495}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69943E59-3592-42A3-8BC8-C9C18DC68495}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69943E59-3592-42A3-8BC8-C9C18DC68495}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69943E59-3592-42A3-8BC8-C9C18DC68495}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1257DE8D-820F-45AD-AFA4-60D758973E07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1257DE8D-820F-45AD-AFA4-60D758973E07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1257DE8D-820F-45AD-AFA4-60D758973E07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1257DE8D-820F-45AD-AFA4-60D758973E07}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
